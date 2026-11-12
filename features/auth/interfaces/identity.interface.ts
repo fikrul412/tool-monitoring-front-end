@@ -1,0 +1,21 @@
+export type UserRole = "STUDENT" | "LECTURER" | "ADMIN";
+
+export interface StudentProfile {
+    name: string;
+    nim: string;
+    whatsapp: string | null;
+}
+
+export interface LecturerProfile {
+    name: string;
+    nip: string;
+    whatsapp: string | null;
+}
+
+export interface Identity {
+    id: string;
+    email: string;
+    role: UserRole;
+    status: string;
+    profile: StudentProfile | LecturerProfile | null;
+}
