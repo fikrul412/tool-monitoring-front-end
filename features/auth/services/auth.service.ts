@@ -4,7 +4,9 @@ import { RegisterPayload } from "../interfaces/register.interface";
 
 export const authService = {
   async login(payload: { email: string; password: string }) {
-    const response = await api.post("/auth/login", payload);
+    const response = await api.post("/auth/login", payload, {
+      withCredentials: true,
+    });
     return response.data;
   },
 
@@ -19,7 +21,9 @@ export const authService = {
   },
 
   async getIdentity() {
-    const response = await api.get("/identity/me");
+    const response = await api.get("/identity/me", {
+      withCredentials: true,
+    });
     return response.data;
   },
 };
