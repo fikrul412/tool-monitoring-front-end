@@ -20,7 +20,7 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const googleAuthUrl = "/api/auth/google";
+  const googleAuthUrl = `${process.env.NEXT_PUBLIC_AUTH_URL}/google`;
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
