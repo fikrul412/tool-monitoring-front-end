@@ -1,12 +1,14 @@
 
 import { api } from "@/lib/axios";
 import { RegisterPayload } from "../interfaces/register.interface";
+import { clearAccessToken, saveAccessToken } from './access-token';
 
 export const authService = {
   async login(payload: { email: string; password: string }) {
     const response = await api.post("/auth/login", payload, {
       withCredentials: true,
     });
+    if (response.data.accessToken) saveAccessToken(response.data.accessToken);
     return response.data;
   },
 
@@ -16,8 +18,12 @@ export const authService = {
   },
 
   async logout() {
-    const response = await api.post("/auth/logout");
-    return response.data;
+    try {
+      const response = await api.post("/auth/logout");
+      return response.data;
+    } finally {
+      clearAccessToken();
+    }
   },
 
   async getIdentity() {

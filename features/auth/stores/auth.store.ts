@@ -3,6 +3,7 @@ import axios from "axios";
 
 import { identityService } from "../services/identity.service";  
 import type { Identity } from "../interfaces/identity.interface";
+import { clearAccessToken } from "../services/access-token";
 type AuthStatus =
     | "loading"
     | "authenticated"
@@ -35,6 +36,7 @@ export const useAuthStore = create<AuthState>((set) => {
                 axios.isAxiosError(error) &&
                 error.response?.status === 401
             ) {
+                clearAccessToken();
                 set({
                     user: null,
                     status: "unauthenticated",
