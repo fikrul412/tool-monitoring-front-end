@@ -1,7 +1,10 @@
 import axios from "axios";
 
 export const api = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000",
+    // Route API requests through the frontend origin. This keeps the
+    // HttpOnly auth cookie first-party in browsers that block third-party
+    // cookies (notably Safari and private browsing sessions).
+    baseURL: "/api",
     withCredentials: true,
     timeout: 10000,
     headers: {
