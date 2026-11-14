@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useResearchDetail, useResearchLogs } from "./hooks/use-research";
 import { ResearchStatusBadge } from "./components/research-status-badge";
-import { useRequestResearchCompletion } from "./hooks/use-research-mutations";
 
 function dateLabel(value: string | null | undefined) {
   if (!value) return "Not set";
@@ -13,19 +12,17 @@ function dateLabel(value: string | null | undefined) {
 export function ResearchDetail({ id, admin = false }: { id: string; admin?: boolean }) {
   const detail = useResearchDetail(id);
   const logs = useResearchLogs(id);
-  const requestCompletion = useRequestResearchCompletion();
   if (detail.isLoading) return <p className="p-8 text-sm text-muted-foreground">Loading research application…</p>;
   if (detail.isError || !detail.data) return <p className="p-8 text-sm text-destructive">Could not load this research application. <button className="underline" onClick={() => detail.refetch()}>Retry</button></p>;
   const research = detail.data;
   return <main className="mx-auto max-w-5xl space-y-6 p-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><Link href={admin ? "/admin/research" : "/dashboard/research"} className="text-sm text-muted-foreground hover:underline">ↁEResearch applications</Link><h1 className="mt-2 text-2xl font-semibold">{research.title}</h1></div>
-      <div className="flex items-center gap-3"><ResearchStatusBadge status={research.status} />{!admin && research.status === "PENDING" && <Link className="rounded-md border px-4 py-2 text-sm" href={`/dashboard/research/${id}/edit`}>Edit application</Link>}{!admin && research.status === "ONGOING" && <button disabled={requestCompletion.isPending} onClick={() => requestCompletion.mutate(id)} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50">{requestCompletion.isPending ? "Submitting…" : "Apply to complete"}</button>}</div>
+      <div className="flex items-center gap-3"><ResearchStatusBadge status={research.status} />{!admin && research.status === "PENDING" && <Link className="rounded-md border px-4 py-2 text-sm" href={`/dashboard/research/${id}/edit`}>Edit application</Link>}{!admin && research.status === "ONGOING" && <Link href={`/dashboard/persuratan/bebas-lab/${id}`} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">Apply to complete</Link>}</div>
     </div>
-    {requestCompletion.isError && <p className="text-sm text-destructive">Could not submit the completion request. Please try again.</p>}
-    {!admin && research.status === "COMPLETION_REQUESTED" && <p className="rounded-lg border bg-muted/30 p-4 text-sm">Your completion request is pending. Submit the <Link className="font-medium underline" href="/dashboard/persuratan/bebas-lab">Surat Bebas Lab</Link> application; the research becomes completed after admin approval.</p>}
-    {research.student && <section className="rounded-lg border p-5"><h2 className="font-medium">Student</h2><p className="mt-2">{research.student.name} · {research.student.nim}</p></section>}
-    <section className="grid gap-4 rounded-lg border p-5 sm:grid-cols-2"><div><h2 className="font-medium">Research period</h2><p className="mt-2 text-sm text-muted-foreground">{dateLabel(research.startDate)}  E{dateLabel(research.endDate)}</p></div><div><h2 className="font-medium">Submitted</h2><p className="mt-2 text-sm text-muted-foreground">{dateLabel(research.createdAt)}</p></div></section>
+    {!admin && research.status === "COMPLETION_REQUESTED" && <p className="rounded-lg border bg-muted/30 p-4 text-sm">Your lab clearance report and completion request are pending admin review. The research becomes completed after approval.</p>}
+    {research.student && <section className="rounded-lg border p-5"><h2 className="font-medium">Student</h2><p className="mt-2">{research.student.name} · {research.student.nim || 'NIM belum diisi'}</p></section>}
+    <section className="grid gap-4 rounded-lg border p-5 sm:grid-cols-2"><div><h2 className="font-medium">Research period</h2><p className="mt-2 text-sm text-muted-foreground">{dateLabel(research.startDate)} – {dateLabel(research.endDate)}</p></div><div><h2 className="font-medium">Submitted</h2><p className="mt-2 text-sm text-muted-foreground">{dateLabel(research.createdAt)}</p></div></section>
     <section className="grid gap-4 md:grid-cols-3">
       <div className="rounded-lg border p-5"><h2 className="font-medium">Supervisors</h2>{research.supervisors.length ? <ul className="mt-3 space-y-2 text-sm">{research.supervisors.map((person) => <li key={person.id}>{person.name} <span className="text-muted-foreground">({person.nip})</span></li>)}</ul> : <p className="mt-3 text-sm text-muted-foreground">None selected</p>}</div>
       <div className="rounded-lg border p-5"><h2 className="font-medium">Laboratories</h2>{research.laboratories.length ? <ul className="mt-3 space-y-2 text-sm">{research.laboratories.map((lab) => <li key={lab.id}>{lab.name}{lab.location ? <span className="text-muted-foreground"> · {lab.location}</span> : null}</li>)}</ul> : <p className="mt-3 text-sm text-muted-foreground">None selected</p>}</div>

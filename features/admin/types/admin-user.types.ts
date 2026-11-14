@@ -8,7 +8,7 @@ export type UserStatus =
 
 export interface StudentProfile {
   name: string;
-  nim: string;
+  nim: string | null;
   whatsapp: string | null;
 }
 

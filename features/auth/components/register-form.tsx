@@ -44,6 +44,9 @@ export function RegisterForm() {
     const payload: RegisterPayload = {
       name: String(formData.get("name")),
       nim: String(formData.get("nim")),
+      studyProgram: String(formData.get("studyProgram") || ''),
+      whatsapp: String(formData.get("whatsapp") || ''),
+      address: String(formData.get("address") || ''),
       email: String(formData.get("email")),
       password,
     };
@@ -119,6 +122,10 @@ export function RegisterForm() {
             className="h-11 rounded-xl"
           />
         </div>
+
+        <div className="space-y-2"><Label htmlFor="studyProgram">Program Studi</Label><Input id="studyProgram" name="studyProgram" placeholder="Program studi" maxLength={150} className="h-11 rounded-xl" /></div>
+        <div className="space-y-2"><Label htmlFor="whatsapp">Nomor HP / WhatsApp</Label><Input id="whatsapp" name="whatsapp" type="tel" placeholder="08xxxxxxxxxx" maxLength={30} autoComplete="tel" className="h-11 rounded-xl" /></div>
+        <div className="space-y-2"><Label htmlFor="address">Alamat</Label><textarea id="address" name="address" placeholder="Alamat tempat tinggal" maxLength={2000} className="min-h-20 w-full rounded-xl border bg-background px-3 py-2 text-sm" /></div>
 
         <div className="space-y-2">
           <Label htmlFor="email">Email Address</Label>

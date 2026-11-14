@@ -91,11 +91,6 @@ export const researchService = {
     return response.data;
   },
 
-  requestCompletion: async (id: string): Promise<Research> => {
-    const response = await api.post<Research>(`/research/${id}/complete`);
-    return response.data;
-  },
-
   // Get application history
   getLogs: async (
     id: string,

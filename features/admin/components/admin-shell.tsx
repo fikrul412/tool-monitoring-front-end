@@ -18,6 +18,7 @@ import {
   LogOut,
   Menu,
   Package,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
@@ -56,9 +57,14 @@ const adminNavigation = [
     icon: Package,
   },
   {
-    label: "Peminjaman Bahan",
+    label: "Peminjaman & Schedule",
     href: "/admin/loans",
     icon: Wrench,
+  },
+  {
+    label: "Pengelolaan Limbah",
+    href: "/admin/waste",
+    icon: Trash2,
   },
   {
     label: "Research",

@@ -20,7 +20,7 @@ export interface Research {
 }
 
 export interface ResearchDetail extends Research {
-  student?: { id: string; name: string; nim: string };
+  student?: { id: string; name: string; nim: string | null };
   supervisors: Array<{ id: string; name: string; nip: string }>;
   laboratories: Array<{ id: string; name: string; location: string | null }>;
   equipment: Array<{
@@ -35,7 +35,7 @@ export interface AdminResearch extends Research {
   student: {
     id: string;
     name: string;
-    nim: string;
+    nim: string | null;
   };
 }
 

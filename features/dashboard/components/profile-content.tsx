@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { identityService } from '@/features/auth/services/identity.service';
 import { useMutation } from '@tanstack/react-query';
 
@@ -16,17 +17,22 @@ import {
 } from "lucide-react";
 
 export default function ProfileContent() {
+    const router = useRouter();
     const user = useAuthStore((state) => state.user);
     const setUser = useAuthStore((state) => state.setUser);
-    const [draft, setDraft] = useState<{ userId: string; name: string; whatsapp: string } | null>(null);
+    const [draft, setDraft] = useState<{ userId: string; name: string; nim: string; whatsapp: string; studyProgram: string; address: string } | null>(null);
     const canEdit = user?.role === 'STUDENT' || user?.role === 'LECTURER';
     const editName = user && draft?.userId === user.id ? draft.name : user?.profile?.name ?? '';
+    const studentProfile = user?.profile && 'nim' in user.profile ? user.profile : null;
+    const editNim = user && draft?.userId === user.id ? draft.nim : studentProfile?.nim ?? '';
     const editWhatsapp = user && draft?.userId === user.id ? draft.whatsapp : user?.profile?.whatsapp ?? '';
-    const updateDraft = (values: { name?: string; whatsapp?: string }) => {
+    const editStudyProgram = user && draft?.userId === user.id ? draft.studyProgram : studentProfile?.studyProgram ?? '';
+    const editAddress = user && draft?.userId === user.id ? draft.address : studentProfile?.address ?? '';
+    const updateDraft = (values: { name?: string; nim?: string; whatsapp?: string; studyProgram?: string; address?: string }) => {
         if (!user) return;
-        setDraft({ userId: user.id, name: values.name ?? editName, whatsapp: values.whatsapp ?? editWhatsapp });
+        setDraft({ userId: user.id, name: values.name ?? editName, nim: values.nim ?? editNim, whatsapp: values.whatsapp ?? editWhatsapp, studyProgram: values.studyProgram ?? editStudyProgram, address: values.address ?? editAddress });
     };
-    const saveProfile = useMutation({ mutationFn: identityService.updateMyProfile, onSuccess: setUser });
+    const saveProfile = useMutation({ mutationFn: identityService.updateMyProfile, onSuccess: identity => { setUser(identity); const nim = identity.profile && 'nim' in identity.profile ? identity.profile.nim : null; if (isStudent && !studentProfile?.nim && nim) router.replace('/dashboard'); } });
 
     if (!user) return null;
 
@@ -41,7 +47,7 @@ export default function ProfileContent() {
             label: isStudent ? "NIM" : "NIP",
             value: profile
                 ? isStudent && "nim" in profile
-                    ? profile.nim
+                    ? profile.nim || "Belum diisi"
                     : "nip" in profile
                         ? profile.nip
                         : "-"
@@ -53,6 +59,10 @@ export default function ProfileContent() {
             value: profile?.whatsapp || "Not provided",
             icon: Phone,
         },
+        ...(isStudent ? [
+            { label: "Program Studi", value: studentProfile?.studyProgram || "Belum diisi", icon: GraduationCap },
+            { label: "Alamat", value: studentProfile?.address || "Belum diisi", icon: UserRound },
+        ] : []),
     ];
 
     return (
@@ -65,7 +75,8 @@ export default function ProfileContent() {
                 <p className="text-sm text-muted-foreground">
                     Informasi akun dan data pribadi Anda.
                 </p>
-                {canEdit && <form className="mt-4 grid max-w-xl gap-3 rounded-lg border p-4" onSubmit={event => { event.preventDefault(); saveProfile.mutate({ name: editName, whatsapp: editWhatsapp.trim() || null }); }}><label className="grid gap-1 text-sm">Nama<input required maxLength={255} className="rounded-md border bg-background px-3 py-2" value={editName} onChange={event => updateDraft({ name: event.target.value })} /></label><label className="grid gap-1 text-sm">Nomor WhatsApp<input maxLength={30} className="rounded-md border bg-background px-3 py-2" value={editWhatsapp} onChange={event => updateDraft({ whatsapp: event.target.value })} /></label><button className="w-fit rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50" disabled={saveProfile.isPending}>Simpan profil</button>{saveProfile.isError && <p className="text-sm text-destructive">Profil gagal disimpan.</p>}{saveProfile.isSuccess && <p className="text-sm text-muted-foreground">Profil berhasil diperbarui.</p>}</form>}
+                {isStudent && !studentProfile?.nim && <p className="mt-3 rounded-lg border border-amber-500/40 bg-amber-50 p-3 text-sm text-amber-900">Lengkapi NIM Anda sebelum menggunakan fitur mahasiswa.</p>}
+                {canEdit && <form className="mt-4 grid max-w-xl gap-3 rounded-lg border p-4" onSubmit={event => { event.preventDefault(); saveProfile.mutate({ name: editName, whatsapp: editWhatsapp.trim() || null, ...(isStudent ? { nim: editNim.trim(), studyProgram: editStudyProgram || null, address: editAddress || null } : {}) }); }}><label className="grid gap-1 text-sm">Nama<input required maxLength={255} className="rounded-md border bg-background px-3 py-2" value={editName} onChange={event => updateDraft({ name: event.target.value })} /></label>{isStudent && <label className="grid gap-1 text-sm">NIM<input required maxLength={30} className="rounded-md border bg-background px-3 py-2" value={editNim} onChange={event => updateDraft({ nim: event.target.value })} placeholder="Masukkan NIM untuk melanjutkan" /></label>}<label className="grid gap-1 text-sm">Nomor WhatsApp<input maxLength={30} className="rounded-md border bg-background px-3 py-2" value={editWhatsapp} onChange={event => updateDraft({ whatsapp: event.target.value })} /></label>{isStudent && <><label className="grid gap-1 text-sm">Program Studi<input maxLength={150} className="rounded-md border bg-background px-3 py-2" value={editStudyProgram} onChange={event => updateDraft({ studyProgram: event.target.value })} /></label><label className="grid gap-1 text-sm">Alamat<textarea maxLength={2000} className="rounded-md border bg-background px-3 py-2" value={editAddress} onChange={event => updateDraft({ address: event.target.value })} /></label></>}<button className="w-fit rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50" disabled={saveProfile.isPending}>Simpan profil</button>{saveProfile.isError && <p className="text-sm text-destructive">Profil gagal disimpan. NIM mungkin sudah digunakan.</p>}{saveProfile.isSuccess && <p className="text-sm text-muted-foreground">Profil berhasil diperbarui.</p>}</form>}
             </div>
 
             {/* Profile Header */}

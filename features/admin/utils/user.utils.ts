@@ -11,7 +11,7 @@ export function getUserName(user: AdminUser) {
 
 export function getUserIdentifier(user: AdminUser) {
   if (user.role === "STUDENT" && user.profile && "nim" in user.profile) {
-    return user.profile.nim;
+    return user.profile.nim ?? "NIM belum diisi";
   }
 
   if (user.role === "LECTURER" && user.profile && "nip" in user.profile) {

@@ -28,7 +28,6 @@ export function useCreateResearch() {
     },
   });
 }
-
 export function useUpdateResearch() {
   const queryClient = useQueryClient();
 
@@ -89,18 +88,6 @@ export function useUpdateResearchStatus() {
       queryClient.invalidateQueries({ queryKey: researchKeys.all });
       queryClient.invalidateQueries({ queryKey: researchKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: researchKeys.logs(variables.id) });
-    },
-  });
-}
-
-export function useRequestResearchCompletion() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => researchService.requestCompletion(id),
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: researchKeys.all });
-      queryClient.invalidateQueries({ queryKey: researchKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: researchKeys.logs(id) });
     },
   });
 }
