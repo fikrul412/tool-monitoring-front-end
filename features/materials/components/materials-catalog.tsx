@@ -84,13 +84,18 @@ export function MaterialsCatalog() {
                         {mat.name}
                       </CardTitle>
                       <p className="text-xs font-semibold text-emerald-700 mt-0.5">
-                        {parseFloat(mat.quantity).toLocaleString()} {mat.unit}
+                        {mat.unit}
                       </p>
                     </div>
                   </div>
-                  <Badge variant={mat.ownerType === "LAB" ? "default" : "secondary"} className="text-[10px]">
-                    {mat.ownerType}
-                  </Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge variant={mat.ownerType === "LAB" ? "default" : "secondary"} className="text-[10px]">
+                      {mat.ownerType}
+                    </Badge>
+                    <Badge variant="outline" className={mat.isAvailable ? "text-[10px] text-emerald-700 border-emerald-200 bg-emerald-50" : "text-[10px] text-neutral-500"}>
+                      {mat.isAvailable ? "Tersedia" : "Tidak tersedia"}
+                    </Badge>
+                  </div>
                 </div>
                 <CardDescription className="line-clamp-2 mt-2 text-xs">
                   {mat.description || "Tidak ada rincian spesifikasi tambahan."}
@@ -148,17 +153,17 @@ export function MaterialsCatalog() {
               {selectedMaterial?.name}
             </DialogTitle>
             <DialogDescription>
-              Informasi kuantitas sisa dan kepemilikan bahan.
+              Informasi bahan, satuan, dan kepemilikan.
             </DialogDescription>
           </DialogHeader>
 
           {selectedMaterial && (
             <div className="space-y-3.5 py-2 text-sm">
               <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-50 border border-emerald-100">
-                <span className="text-xs text-emerald-800 font-medium">Sisa Kuantitas:</span>
-                <span className="text-sm font-bold text-emerald-900">
-                  {parseFloat(selectedMaterial.quantity).toLocaleString()} {selectedMaterial.unit}
-                </span>
+                <span className="text-xs text-emerald-800 font-medium">Ketersediaan:</span>
+                <Badge variant="outline" className={selectedMaterial.isAvailable ? "text-emerald-700 border-emerald-200 bg-emerald-50" : "text-neutral-500"}>
+                  {selectedMaterial.isAvailable ? "Tersedia" : "Tidak tersedia"}
+                </Badge>
               </div>
 
               <div>

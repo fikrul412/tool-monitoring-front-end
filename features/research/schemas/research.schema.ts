@@ -22,6 +22,7 @@ export const researchSchema = z
     toolIds: z
       .array(z.string().uuid())
       .default([]),
+    materialIds: z.array(z.string().uuid()).default([]),
   })
   .refine(
     (data) => {

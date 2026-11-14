@@ -27,7 +27,9 @@ export interface Tool {
 
   // Relations
   labName: string | null;
+  labLocation?: string | null;
   assignedLabName: string | null;
+  assignedLabLocation?: string | null;
   lecturerName: string | null;
   categoryName: string | null;
 

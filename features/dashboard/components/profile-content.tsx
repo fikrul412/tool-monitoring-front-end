@@ -1,6 +1,10 @@
 
 "use client";
 
+import { useState } from 'react';
+import { identityService } from '@/features/auth/services/identity.service';
+import { useMutation } from '@tanstack/react-query';
+
 import { useAuthStore } from "@/features/auth/stores/auth.store";
 import {
     UserRound,
@@ -13,6 +17,16 @@ import {
 
 export default function ProfileContent() {
     const user = useAuthStore((state) => state.user);
+    const setUser = useAuthStore((state) => state.setUser);
+    const [draft, setDraft] = useState<{ userId: string; name: string; whatsapp: string } | null>(null);
+    const canEdit = user?.role === 'STUDENT' || user?.role === 'LECTURER';
+    const editName = user && draft?.userId === user.id ? draft.name : user?.profile?.name ?? '';
+    const editWhatsapp = user && draft?.userId === user.id ? draft.whatsapp : user?.profile?.whatsapp ?? '';
+    const updateDraft = (values: { name?: string; whatsapp?: string }) => {
+        if (!user) return;
+        setDraft({ userId: user.id, name: values.name ?? editName, whatsapp: values.whatsapp ?? editWhatsapp });
+    };
+    const saveProfile = useMutation({ mutationFn: identityService.updateMyProfile, onSuccess: setUser });
 
     if (!user) return null;
 
@@ -51,6 +65,7 @@ export default function ProfileContent() {
                 <p className="text-sm text-muted-foreground">
                     Informasi akun dan data pribadi Anda.
                 </p>
+                {canEdit && <form className="mt-4 grid max-w-xl gap-3 rounded-lg border p-4" onSubmit={event => { event.preventDefault(); saveProfile.mutate({ name: editName, whatsapp: editWhatsapp.trim() || null }); }}><label className="grid gap-1 text-sm">Nama<input required maxLength={255} className="rounded-md border bg-background px-3 py-2" value={editName} onChange={event => updateDraft({ name: event.target.value })} /></label><label className="grid gap-1 text-sm">Nomor WhatsApp<input maxLength={30} className="rounded-md border bg-background px-3 py-2" value={editWhatsapp} onChange={event => updateDraft({ whatsapp: event.target.value })} /></label><button className="w-fit rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50" disabled={saveProfile.isPending}>Simpan profil</button>{saveProfile.isError && <p className="text-sm text-destructive">Profil gagal disimpan.</p>}{saveProfile.isSuccess && <p className="text-sm text-muted-foreground">Profil berhasil diperbarui.</p>}</form>}
             </div>
 
             {/* Profile Header */}

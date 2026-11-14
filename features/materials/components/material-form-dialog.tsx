@@ -27,9 +27,8 @@ const materialSchema = z.object({
   ownerType: z.enum(["LAB", "LECTURER"]),
   labId: z.string().optional(),
   lecturerId: z.string().optional(),
-  quantity: z.string().min(1, "Jumlah kuantitas wajib diisi"),
   unit: z.string().min(1, "Satuan wajib diisi (contoh: ml, gram, pcs)"),
-  isMonitored: z.boolean(),
+  isAvailable: z.boolean(),
 });
 
 type MaterialFormValues = z.infer<typeof materialSchema>;
@@ -66,9 +65,8 @@ export function MaterialFormDialog({
       ownerType: "LAB",
       labId: "",
       lecturerId: "",
-      quantity: "0",
       unit: "pcs",
-      isMonitored: true,
+      isAvailable: true,
     },
   });
 
@@ -98,9 +96,8 @@ export function MaterialFormDialog({
         ownerType: material.ownerType,
         labId: material.labId || "",
         lecturerId: material.lecturerId || "",
-        quantity: material.quantity || "0",
         unit: material.unit,
-        isMonitored: material.isMonitored,
+        isAvailable: material.isAvailable,
       });
     } else {
       reset({
@@ -109,9 +106,8 @@ export function MaterialFormDialog({
         ownerType: "LAB",
         labId: labsData?.data?.[0]?.id || "",
         lecturerId: "",
-        quantity: "0",
         unit: "pcs",
-        isMonitored: true,
+        isAvailable: true,
       });
     }
   }, [material, labsData, reset]);
@@ -124,9 +120,8 @@ export function MaterialFormDialog({
         ownerType: values.ownerType as MaterialOwnerType,
         labId: values.ownerType === "LAB" ? values.labId : undefined,
         lecturerId: values.ownerType === "LECTURER" ? values.lecturerId : undefined,
-        quantity: values.quantity,
         unit: values.unit,
-        isMonitored: values.isMonitored,
+        isAvailable: values.isAvailable,
       };
 
       if (isEditing && material) {
@@ -147,7 +142,7 @@ export function MaterialFormDialog({
           <DialogTitle>{isEditing ? "Edit Bahan / Konsumabel" : "Tambah Bahan Baru"}</DialogTitle>
           <DialogDescription>
             {isEditing
-              ? "Perbarui jumlah stok, satuan, atau kepemilikan bahan."
+              ? "Perbarui satuan atau kepemilikan bahan."
               : "Daftarkan bahan kimia, reagen, atau material konsumabel baru."}
           </DialogDescription>
         </DialogHeader>
@@ -159,18 +154,10 @@ export function MaterialFormDialog({
             {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="quantity">Jumlah Stok</Label>
-              <Input id="quantity" type="number" step="any" placeholder="0" {...register("quantity")} />
-              {errors.quantity && <p className="text-xs text-red-500">{errors.quantity.message}</p>}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="unit">Satuan</Label>
-              <Input id="unit" placeholder="ml, liter, gram, botol" {...register("unit")} />
-              {errors.unit && <p className="text-xs text-red-500">{errors.unit.message}</p>}
-            </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="unit">Satuan</Label>
+            <Input id="unit" placeholder="ml, liter, gram, botol" {...register("unit")} />
+            {errors.unit && <p className="text-xs text-red-500">{errors.unit.message}</p>}
           </div>
 
           <div className="space-y-1.5">
@@ -227,12 +214,12 @@ export function MaterialFormDialog({
           <div className="flex items-center gap-2 pt-1">
             <input
               type="checkbox"
-              id="isMonitored"
-              {...register("isMonitored")}
+              id="isAvailable"
+              {...register("isAvailable")}
               className="rounded border-neutral-300 text-primary focus:ring-primary/20 h-4 w-4"
             />
-            <Label htmlFor="isMonitored" className="text-xs font-normal text-neutral-700 cursor-pointer">
-              Pantau sisa kuantitas dan penggunaan bahan ini (isMonitored)
+            <Label htmlFor="isAvailable" className="text-xs font-normal text-neutral-700 cursor-pointer">
+              Material tersedia
             </Label>
           </div>
 

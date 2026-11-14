@@ -1,0 +1,8 @@
+"use client";
+import { useQuery } from '@tanstack/react-query';
+import { attendanceService } from '@/features/attendance/attendance.service';
+
+export default function AdminAttendancePage() {
+  const query = useQuery({ queryKey: ['admin-attendance-logs'], queryFn: attendanceService.adminLogs });
+  return <main className="space-y-5"><header><h1 className="text-2xl font-semibold">Log Absensi</h1><p className="mt-1 text-sm text-muted-foreground">Daftar semua log masuk dan pulang mahasiswa serta dosen.</p></header>{query.isLoading ? <p className="text-sm text-muted-foreground">Memuat log…</p> : query.isError ? <p className="rounded-lg border p-4 text-sm text-destructive">Log absensi gagal dimuat.</p> : <div className="overflow-x-auto rounded-xl border"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="p-3">Waktu</th><th className="p-3">Nama</th><th className="p-3">Peran / ID</th><th className="p-3">Laboratorium</th><th className="p-3">Research</th><th className="p-3">Aktivitas</th></tr></thead><tbody>{query.data?.map(log => <tr key={log.id} className="border-t"><td className="whitespace-nowrap p-3">{new Date(log.recordedAt).toLocaleString('id-ID')}</td><td className="p-3 font-medium">{log.name}</td><td className="p-3">{log.role} · {log.nim ?? log.nip}</td><td className="p-3">{log.labName}</td><td className="p-3">{log.researchTitle ?? '—'}</td><td className="p-3">{log.status === 'ENTRY' ? 'Masuk' : 'Pulang'}</td></tr>)}</tbody></table>{!query.data?.length && <p className="p-5 text-sm text-muted-foreground">Belum ada log absensi.</p>}</div>}</main>;
+}

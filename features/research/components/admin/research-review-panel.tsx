@@ -13,11 +13,11 @@ export function ResearchReviewPanel({ id }: { id: string }) {
   const detail = useResearchDetail(id);
   if (detail.isLoading || !detail.data) return null;
   const submit = (status: "APPROVED" | "REJECTED") => review.mutate({ id, payload: { status, comments: comments.trim() || undefined } }, { onSuccess: () => { setComments(""); router.refresh(); } });
-  const move = (status: "ONGOING" | "COMPLETED" | "CANCELLED") => updateStatus.mutate({ id, payload: { status, comments: comments.trim() || undefined } }, { onSuccess: () => { setComments(""); router.refresh(); } });
+  const move = (status: "ONGOING" | "CANCELLED") => updateStatus.mutate({ id, payload: { status, comments: comments.trim() || undefined } }, { onSuccess: () => { setComments(""); router.refresh(); } });
   const pending = detail.data.status === "PENDING";
-  const actions: Array<{ label: string; status: "ONGOING" | "COMPLETED" | "CANCELLED" }> = detail.data.status === "APPROVED"
+  const actions: Array<{ label: string; status: "ONGOING" | "CANCELLED" }> = detail.data.status === "APPROVED"
     ? [{ label: "Mark ongoing", status: "ONGOING" }, { label: "Cancel", status: "CANCELLED" }]
-    : detail.data.status === "ONGOING" ? [{ label: "Mark completed", status: "COMPLETED" }, { label: "Cancel", status: "CANCELLED" }] : [];
+    : detail.data.status === "ONGOING" ? [{ label: "Cancel", status: "CANCELLED" }] : [];
   if (!pending && actions.length === 0) return null;
   const busy = review.isPending || updateStatus.isPending;
   const error = review.error ?? updateStatus.error;

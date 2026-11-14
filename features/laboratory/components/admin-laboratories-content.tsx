@@ -65,11 +65,7 @@ export function AdminLaboratoriesContent() {
 
   // Search users (lecturers & admins) when typing name/email
   useEffect(() => {
-    if (!managingLab) {
-      setUserResults([]);
-      setUserSearch("");
-      return;
-    }
+    if (!managingLab) return;
 
     const timer = setTimeout(async () => {
       setIsSearchingUsers(true);
@@ -136,7 +132,7 @@ export function AdminLaboratoriesContent() {
         managers: [
           ...managingLab.managers,
           {
-            id: `temp-${Date.now()}`,
+            id: user.id,
             userId: user.id,
             name: newManagerName,
             email: user.email || "",
@@ -251,7 +247,7 @@ export function AdminLaboratoriesContent() {
                         size="icon"
                         className="h-8 w-8 text-neutral-600 hover:text-primary"
                         title="Kelola Penanggung Jawab"
-                        onClick={() => setManagingLab(lab)}
+                        onClick={() => { setUserSearch(""); setUserResults([]); setManagingLab(lab); }}
                       >
                         <Users className="h-4 w-4" />
                       </Button>

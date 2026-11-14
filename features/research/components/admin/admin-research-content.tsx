@@ -33,7 +33,9 @@ const statusOptions = [
   { label: "Approved", value: "APPROVED" },
   { label: "Rejected", value: "REJECTED" },
   { label: "Ongoing", value: "ONGOING" },
+  { label: "Completion requested", value: "COMPLETION_REQUESTED" },
   { label: "Completed", value: "COMPLETED" },
+  { label: "Archived", value: "ARCHIVED" },
   { label: "Cancelled", value: "CANCELLED" },
 ] as const;
 

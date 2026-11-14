@@ -8,9 +8,8 @@ export interface Material {
   ownerType: MaterialOwnerType;
   labId: string | null;
   lecturerId: string | null;
-  quantity: string;
   unit: string;
-  isMonitored: boolean;
+  isAvailable: boolean;
   createdAt: string;
   updatedAt: string | null;
   labName: string | null;
@@ -42,9 +41,8 @@ export interface CreateMaterialPayload {
   ownerType: MaterialOwnerType;
   labId?: string;
   lecturerId?: string;
-  quantity: string;
   unit: string;
-  isMonitored?: boolean;
+  isAvailable?: boolean;
 }
 
 export interface UpdateMaterialPayload {
@@ -53,7 +51,6 @@ export interface UpdateMaterialPayload {
   ownerType?: MaterialOwnerType;
   labId?: string;
   lecturerId?: string;
-  quantity?: string;
   unit?: string;
-  isMonitored?: boolean;
+  isAvailable?: boolean;
 }

@@ -92,3 +92,15 @@ export function useUpdateResearchStatus() {
     },
   });
 }
+
+export function useRequestResearchCompletion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => researchService.requestCompletion(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: researchKeys.all });
+      queryClient.invalidateQueries({ queryKey: researchKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: researchKeys.logs(id) });
+    },
+  });
+}

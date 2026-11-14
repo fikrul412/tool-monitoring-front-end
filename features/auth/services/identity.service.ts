@@ -8,4 +8,7 @@ export const identityService = {
         });
         return response.data;
     },
+    async updateMyProfile(payload: { name: string; whatsapp: string | null }): Promise<Identity> {
+        return (await api.patch<Identity>('/identity/me/profile', payload)).data;
+    },
 };

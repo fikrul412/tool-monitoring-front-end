@@ -1,0 +1,11 @@
+'use client';
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { borrowingService } from '@/features/borrowing/borrowing.service';
+
+export default function AdminLoansPage() {
+  const client = useQueryClient();
+  const query = useQuery({ queryKey: ['borrowing', 'pending-materials'], queryFn: borrowingService.pendingMaterials });
+  const mutation = useMutation({ mutationFn: ({ id, status }: { id: string; status: 'APPROVED' | 'REJECTED' }) => borrowingService.reviewMaterial(id, status), onSuccess: async () => { await client.invalidateQueries({ queryKey: ['borrowing'] }); } });
+  return <main className="mx-auto max-w-5xl space-y-6 p-6"><header><h1 className="text-2xl font-semibold">Review Peminjaman Bahan</h1><p className="mt-1 text-sm text-muted-foreground">Setiap formulir adalah satu permintaan bahan. Setujui atau tolak permintaan mahasiswa.</p></header>{query.isLoading ? <p>Memuat pengajuan…</p> : query.isError ? <p className="text-sm text-destructive">Pengajuan bahan gagal dimuat.</p> : query.data?.length ? <div className="space-y-3">{query.data.map(item => <article key={item.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border p-4"><div><h2 className="font-medium">{item.materialName} · {item.quantity} {item.unit}</h2><p className="text-sm">{item.student.name} · {item.student.nim}</p><p className="text-xs text-muted-foreground">{item.description || 'Tanpa keterangan'} · {new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.createdAt))}</p></div><div className="flex gap-2"><button disabled={mutation.isPending} className="rounded-md border px-3 py-2 text-sm" onClick={() => mutation.mutate({ id: item.id, status: 'REJECTED' })}>Tolak</button><button disabled={mutation.isPending} className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground" onClick={() => mutation.mutate({ id: item.id, status: 'APPROVED' })}>Setujui</button></div></article>)}</div> : <p className="rounded-xl border p-5 text-sm text-muted-foreground">Tidak ada permintaan bahan yang menunggu.</p>}{mutation.isError && <p className="text-sm text-destructive">Keputusan gagal disimpan.</p>}</main>;
+}

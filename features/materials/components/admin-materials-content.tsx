@@ -117,10 +117,10 @@ export function AdminMaterialsContent() {
           <TableHeader>
             <TableRow>
               <TableHead>Nama Bahan</TableHead>
-              <TableHead>Sisa Kuantitas</TableHead>
+              <TableHead>Satuan</TableHead>
               <TableHead>Kepemilikan</TableHead>
               <TableHead>Pemilik / Lokasi</TableHead>
-              <TableHead>Pemantauan</TableHead>
+              <TableHead>Ketersediaan</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
@@ -146,10 +146,7 @@ export function AdminMaterialsContent() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className="font-semibold text-neutral-900">
-                      {parseFloat(mat.quantity).toLocaleString()}
-                    </span>{" "}
-                    <span className="text-xs text-neutral-500">{mat.unit}</span>
+                    <span className="font-semibold text-neutral-900">{mat.unit}</span>
                   </TableCell>
                   <TableCell>
                     <Badge variant={mat.ownerType === "LAB" ? "default" : "secondary"} className="text-[11px]">
@@ -160,13 +157,13 @@ export function AdminMaterialsContent() {
                     {mat.ownerType === "LAB" ? mat.labName || "Lab Umum" : mat.lecturerName || "Dosen"}
                   </TableCell>
                   <TableCell>
-                    {mat.isMonitored ? (
+                    {mat.isAvailable ? (
                       <Badge variant="outline" className="text-[10px] text-emerald-700 border-emerald-200 bg-emerald-50">
-                        Dimonitor
+                        Tersedia
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="text-[10px] text-neutral-500">
-                        Bebas
+                        Tidak tersedia
                       </Badge>
                     )}
                   </TableCell>

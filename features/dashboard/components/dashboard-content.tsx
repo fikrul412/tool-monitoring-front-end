@@ -3,13 +3,15 @@
 import Link from "next/link";
 import {
     ArrowUpRight,
-    Bell,
+    FlaskConical,
+    BookOpen,
+    Building2,
     FileText,
     QrCode,
     Wrench,
     Scale,
     MessageCircle,
-    Package,
+    Boxes
 } from "lucide-react";
 
 import { useAuthStore } from "@/features/auth/stores/auth.store";
@@ -28,8 +30,32 @@ const dashboardMenus = [
         icon: QrCode,
     },
     {
-        title: "Peminjaman Alat",
-        description: "Ajukan pemakaian alat",
+        title: "Laboratorium",
+        description: "Daftar dan informasi fasilitas lab",
+        href: "/dashboard/laboratories",
+        icon: Building2,
+    },
+    {
+        title: "Research",
+        description: "Publikasi, proyek, dan topik riset",
+        href: "/dashboard/research",
+        icon: BookOpen,
+    },
+    {
+        title: "Peralatan",
+        description: "Katalog dan ketersediaan alat lab",
+        href: "/dashboard/equipment",
+        icon: Boxes,
+    },
+    {
+        title: "Bahan & Reagen",
+        description: "Stok bahan kimia dan reagen",
+        href: "/dashboard/materials",
+        icon: FlaskConical,
+    },
+    {
+        title: "Peminjaman Alat dan Bahan",
+        description: "Peminjaman alat, bahan, dan schedule alat",
         href: "/dashboard/loans",
         icon: Wrench,
     },

@@ -13,6 +13,8 @@ import {
   ChevronRight,
   GraduationCap,
   LayoutDashboard,
+  FileText,
+  Wrench,
   LogOut,
   Menu,
   Package,
@@ -54,9 +56,19 @@ const adminNavigation = [
     icon: Package,
   },
   {
+    label: "Peminjaman Bahan",
+    href: "/admin/loans",
+    icon: Wrench,
+  },
+  {
     label: "Research",
     href: "/admin/research",
     icon: BookOpen,
+  },
+  {
+    label: "Persuratan",
+    href: "/admin/persuratan",
+    icon: FileText,
   },
   {
     label: "Absensi",

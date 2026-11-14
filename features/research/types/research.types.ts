@@ -3,7 +3,9 @@ export type ResearchStatus =
   | "APPROVED"
   | "REJECTED"
   | "ONGOING"
+  | "COMPLETION_REQUESTED"
   | "COMPLETED"
+  | "ARCHIVED"
   | "CANCELLED";
 
 export interface Research {
@@ -27,6 +29,7 @@ export interface ResearchDetail extends Research {
     inventoryCode: string | null;
     status: string;
   }>;
+  materials: Array<{ id: string; name: string; unit: string }>;
 }
 export interface AdminResearch extends Research {
   student: {
@@ -70,8 +73,6 @@ export interface ResearchApplicationLog {
   status: ResearchStatus;
   comments: string | null;
   createdAt: string;
-  reviewedBy: string | null;
-  reviewer?: { id: string; email: string | null } | null;
 }
 
 // API response types
@@ -92,6 +93,7 @@ export interface CreateResearchPayload {
   supervisorIds: string[];
   labIds: string[];
   toolIds: string[];
+  materialIds: string[];
 }
 
 export interface UpdateResearchPayload {
@@ -101,6 +103,7 @@ export interface UpdateResearchPayload {
   supervisorIds?: string[];
   labIds?: string[];
   toolIds?: string[];
+  materialIds?: string[];
 }
 
 export interface ReviewResearchPayload {
@@ -109,6 +112,6 @@ export interface ReviewResearchPayload {
 }
 
 export interface UpdateResearchStatusPayload {
-  status: Extract<ResearchStatus, "ONGOING" | "COMPLETED" | "CANCELLED">;
+  status: Extract<ResearchStatus, "ONGOING" | "CANCELLED">;
   comments?: string;
 }

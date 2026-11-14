@@ -17,7 +17,7 @@ import type {
 export const researchService = {
   // Student: Get own research applications
   getMyResearch: async (
-    params: { page?: number; limit?: number; search?: string; status?: "PENDING" | "APPROVED" | "REJECTED" | "ONGOING" | "COMPLETED" | "CANCELLED" } = {},
+    params: { page?: number; limit?: number; search?: string; status?: "PENDING" | "APPROVED" | "REJECTED" | "ONGOING" | "COMPLETION_REQUESTED" | "COMPLETED" | "ARCHIVED" | "CANCELLED" } = {},
   ): Promise<ResearchListResponse> => {
     const response = await api.get<ResearchListResponse>(
       "/research/me",
@@ -88,6 +88,11 @@ export const researchService = {
 
   updateStatus: async (id: string, payload: UpdateResearchStatusPayload): Promise<Research> => {
     const response = await api.patch<Research>(`/research/${id}/status`, payload);
+    return response.data;
+  },
+
+  requestCompletion: async (id: string): Promise<Research> => {
+    const response = await api.post<Research>(`/research/${id}/complete`);
     return response.data;
   },
 

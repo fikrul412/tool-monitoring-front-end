@@ -44,7 +44,9 @@ export function ResearchFilters({
         <option value="APPROVED">Approved</option>
         <option value="REJECTED">Rejected</option>
           <option value="ONGOING">Ongoing</option>
+          <option value="COMPLETION_REQUESTED">Completion requested</option>
           <option value="COMPLETED">Completed</option>
+        <option value="ARCHIVED">Archived</option>
           <option value="CANCELLED">Cancelled</option>
       </select>
     </div>

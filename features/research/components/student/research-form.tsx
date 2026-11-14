@@ -18,6 +18,7 @@ import {
   useResearchEquipment,
   useResearchLaboratories,
   useResearchLecturers,
+  useResearchMaterials,
 } from "../../hooks/use-research-options";
 
 import { useCreateResearch, useUpdateResearch } from "../../hooks/use-research-mutations";
@@ -43,6 +44,7 @@ export function ResearchForm({ researchId }: { researchId?: string }) {
       supervisorIds: [],
       labIds: [],
       toolIds: [],
+      materialIds: [],
     },
   });
 
@@ -56,6 +58,7 @@ export function ResearchForm({ researchId }: { researchId?: string }) {
       supervisorIds: research.supervisors.map((item) => item.id),
       labIds: research.laboratories.map((item) => item.id),
       toolIds: research.equipment.map((item) => item.id),
+      materialIds: research.materials.map((item) => item.id),
     });
   }, [existingResearch.data, form]);
 
@@ -72,6 +75,12 @@ export function ResearchForm({ researchId }: { researchId?: string }) {
     isLoading: isLoadingEquipment,
     isError: isEquipmentError,
   } = useResearchEquipment();
+
+  const {
+    data: materials = [],
+    isLoading: isLoadingMaterials,
+    isError: isMaterialsError,
+  } = useResearchMaterials();
 
   // Fetch lecturers
   const {
@@ -98,6 +107,7 @@ export function ResearchForm({ researchId }: { researchId?: string }) {
   const availableEquipment = equipment.filter(
     (tool) => tool.status === "AVAILABLE",
   );
+  const availableMaterials = materials.filter((material) => material.isAvailable);
 
   if (researchId && existingResearch.isLoading) {
     return <p className="py-10 text-center text-sm text-muted-foreground">Loading application…</p>;
@@ -260,6 +270,23 @@ export function ResearchForm({ researchId }: { researchId?: string }) {
         }
       />
 
+      <ResearchMultiSelect
+        label="Materials"
+        placeholder="Select materials (optional)"
+        searchPlaceholder="Search materials..."
+        emptyMessage="No available materials found."
+        options={availableMaterials.map((material) => ({
+          id: material.id,
+          label: material.name,
+          description: material.unit,
+        }))}
+        value={form.watch("materialIds") ?? []}
+        onChange={(value) => form.setValue("materialIds", value, { shouldValidate: true })}
+        loading={isLoadingMaterials}
+        disabled={isMaterialsError}
+        error={isMaterialsError ? "Failed to load materials." : form.formState.errors.materialIds?.message}
+      />
+
       {/* Submission Error */}
       {mutationError && (
         <p className="text-sm text-destructive">
@@ -284,6 +311,8 @@ export function ResearchForm({ researchId }: { researchId?: string }) {
             isPending ||
             isLoadingLaboratories ||
             isLoadingLecturers ||
+            isLoadingEquipment ||
+            isLoadingMaterials ||
             (Boolean(researchId) && existingResearch.isLoading)
           }
         >
