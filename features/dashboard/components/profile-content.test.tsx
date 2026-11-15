@@ -6,6 +6,7 @@ import { identityService } from '@/features/auth/services/identity.service';
 import { useAuthStore } from '@/features/auth/stores/auth.store';
 
 vi.mock('@/features/auth/services/identity.service', () => ({ identityService: { getMe: vi.fn(), updateMyProfile: vi.fn() } }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 
 describe('ProfileContent', () => {
   beforeEach(() => {
@@ -23,7 +24,7 @@ describe('ProfileContent', () => {
     fireEvent.change(screen.getByLabelText('Nomor WhatsApp'), { target: { value: '08123456789' } });
     fireEvent.click(screen.getByRole('button', { name: 'Simpan profil' }));
 
-    await waitFor(() => expect(identityService.updateMyProfile).toHaveBeenCalledWith({ name: 'Updated Name', whatsapp: '08123456789' }, expect.anything()));
+    await waitFor(() => expect(identityService.updateMyProfile).toHaveBeenCalledWith({ name: 'Updated Name', nim: '123', whatsapp: '08123456789', studyProgram: null, address: null }, expect.anything()));
     expect(await screen.findByText('Profil berhasil diperbarui.')).toBeInTheDocument();
     expect(useAuthStore.getState().user).toEqual(updated);
   });

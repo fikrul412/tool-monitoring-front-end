@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
-import { QRCodeSVG } from 'qrcode.react';
+import { QrDisplay } from '@/features/qr/components/qr-display';
 import { equipmentService } from '@/features/equipment/services/equipment.service';
 import { materialsService } from '@/features/materials/services/materials.service';
-import { borrowingService } from '../borrowing.service';
+import { borrowingService, qrService } from '../borrowing.service';
 import type { Tool } from '@/features/equipment/types/equipment.types';
+import { listenForQrResult } from '@/features/qr/qr-events';
 
 const tabs = [
   ['tool', 'Peminjaman Alat'], ['return-tools', 'Pengembalian Alat'], ['material', 'Peminjaman Bahan'], ['schedule-request', 'Pengajuan Schedule Alat'], ['schedule', 'Schedule Alat'], ['my-tools', 'My Tool'],
@@ -38,9 +39,79 @@ function ToolSelect({ value, onChange }: { value: string; onChange: (value: stri
   return <div className="space-y-2"><input className={field} value={search} onChange={event => setSearch(event.target.value)} placeholder="Cari nama alat atau kode inventaris…" required={!value} /><p className="text-xs text-muted-foreground">Ketik minimal dua karakter untuk mencari.</p>{query.isFetching && <p className="text-xs text-muted-foreground">Mencari alat…</p>}{query.data?.data.length ? <div className="max-h-64 overflow-y-auto rounded-md border">{query.data.data.map(tool => <button type="button" key={tool.id} onClick={() => { setSelected(tool); onChange(tool.id); }} className="block w-full border-b p-3 text-left last:border-0 hover:bg-accent"><span className="block font-medium">{tool.name}{tool.inventoryCode ? ` · ${tool.inventoryCode}` : ''}</span><span className="text-xs text-muted-foreground">{tool.assignedLabName ?? tool.labName ?? 'Laboratorium belum ditentukan'} · {tool.assignedLabLocation ?? tool.labLocation ?? 'Lokasi belum ditentukan'} · {tool.status}</span></button>)}</div> : debouncedSearch.length >= 2 && !query.isFetching ? <p className="rounded-md border p-3 text-sm text-muted-foreground">Alat tidak ditemukan.</p> : null}</div>;
 }
 
-function AuthPanel({ token, label, onChoose, busy }: { token: string; label: string; onChoose: (result: 'OK' | 'FAILED', condition?: string, notes?: string) => void; busy: boolean }) {
-  const [condition, setCondition] = useState('Baik'); const [notes, setNotes] = useState('');
-  return <div className="space-y-3 rounded-lg border bg-muted/30 p-4"><h2 className="font-medium">Autentikasi QR {label}</h2><div className="inline-flex rounded bg-white p-3"><QRCodeSVG value={token} size={152} /></div><p className="text-xs text-muted-foreground">Pemindaian QR belum tersedia; pilih hasil dummy untuk melanjutkan.</p>{label === 'pengembalian' && <div className="grid max-w-md gap-2"><label className="text-sm">Kondisi terakhir alat<select className={field} value={condition} onChange={event => setCondition(event.target.value)}><option>Baik</option><option>Rusak</option><option>Hilang</option></select></label><label className="text-sm">Catatan kondisi<textarea className={field} value={notes} onChange={event => setNotes(event.target.value)} placeholder="Opsional" /></label></div>}<div className="flex gap-2"><button className={button} disabled={busy} onClick={() => onChoose('OK', condition, notes)}>OK</button><button className="rounded-md border px-4 py-2 text-sm" disabled={busy} onClick={() => onChoose('FAILED')}>Failed</button></div></div>;
+function AuthPanel({
+  token,
+  jti,
+  expiresAt,
+  label,
+  onChoose,
+  onRefresh,
+  busy,
+}: {
+  token: string;
+  jti: string;
+  expiresAt: string;
+  label: string;
+  onChoose: (result: 'OK' | 'FAILED', condition?: string, notes?: string) => void;
+  onRefresh: () => void;
+  busy: boolean;
+}) {
+  const [condition, setCondition] = useState('Baik');
+  const [notes, setNotes] = useState('');
+  const [scanFailed, setScanFailed] = useState(false);
+  const [scanSucceeded, setScanSucceeded] = useState(false);
+  const [now, setNow] = useState(0);
+  const expired = now >= Date.parse(expiresAt);
+  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
+  useEffect(() => listenForQrResult(jti, result => {
+    if (result.authenticated) { setScanSucceeded(true); onChoose('OK', condition, notes); }
+    else { setScanFailed(true); setScanSucceeded(false); }
+  }), [jti, onChoose, condition, notes]);
+
+  return (
+    <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+      <h2 className="font-medium">Autentikasi QR {label}</h2>
+
+      <div className="inline-flex rounded bg-white p-3">
+        <QrDisplay value={token} size={256} />
+      </div>
+
+      <p className="text-xs text-muted-foreground">Scan QR dengan perangkat pemindai yang mengirim token ke server untuk diverifikasi.</p>
+      {scanFailed && <p className="text-sm text-destructive">Token QR tidak valid atau sudah kedaluwarsa. Ajukan QR baru untuk mencoba lagi.</p>}
+      {scanSucceeded && <p role="status" className="text-sm text-emerald-700">QR authentication succeeded. Completing your request…</p>}
+      {expired && <p className="text-sm text-destructive">QR sudah kedaluwarsa.</p>}
+      {(scanFailed || expired) && <button type="button" className={button} disabled={busy} onClick={() => { setScanFailed(false); onRefresh(); }}>Perbarui QR</button>}
+
+      {label === 'pengembalian' && (
+        <div className="grid max-w-md gap-2">
+          <label className="text-sm">
+            Kondisi terakhir alat
+            <select
+              className={field}
+              value={condition}
+              onChange={event => setCondition(event.target.value)}
+            >
+              <option>Baik</option>
+              <option>Rusak</option>
+              <option>Hilang</option>
+            </select>
+          </label>
+
+          <label className="text-sm">
+            Catatan kondisi
+            <textarea
+              className={field}
+              value={notes}
+              onChange={event => setNotes(event.target.value)}
+              placeholder="Opsional"
+            />
+          </label>
+        </div>
+      )}
+
+      {busy && <p className="text-sm text-muted-foreground">Memproses hasil scan…</p>}
+    </div>
+  );
 }
 
 export function BorrowingWorkflow() {
@@ -50,7 +121,8 @@ export function BorrowingWorkflow() {
   const materials = useQuery({ queryKey: ['materials', 'borrowable'], queryFn: () => materialsService.getMaterials({ limit: 100 }) });
   const [materialId, setMaterialId] = useState(''); const [quantity, setQuantity] = useState('1'); const [description, setDescription] = useState('');
   const [toolId, setToolId] = useState(''); const [duration, setDuration] = useState('60');
-  const [startTime, setStartTime] = useState(''); const [endTime, setEndTime] = useState(''); const [auth, setAuth] = useState<{ toolId: string; token: string; kind: 'borrow' | 'return'; durationMinutes?: number } | null>(null);
+  const [startTime, setStartTime] = useState(''); const [endTime, setEndTime] = useState(''); const [auth, setAuth] = useState<{ toolId: string; token: string; jti: string; expiresAt: string; kind: 'borrow' | 'return'; durationMinutes?: number } | null>(null);
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [scheduleTool, setScheduleTool] = useState('');
   const materialList = useQuery({ queryKey: [...key, 'materials'], queryFn: borrowingService.materials, enabled: selected === 'material' });
   const myTools = useQuery({ queryKey: [...key, 'my-tools'], queryFn: borrowingService.myTools, enabled: selected === 'my-tools' || selected === 'return-tools' });
@@ -58,12 +130,22 @@ export function BorrowingWorkflow() {
   const scheduleList = useQuery({ queryKey: [...key, 'schedules', scheduleTool], queryFn: () => borrowingService.schedules(scheduleTool), enabled: selected === 'schedule' && Boolean(scheduleTool) });
   const mutationOptions = { onSuccess: async () => { await client.invalidateQueries({ queryKey: key }); await client.invalidateQueries({ queryKey: ['equipment'] }); } };
   const materialMutation = useMutation({ mutationFn: borrowingService.requestMaterial, ...mutationOptions });
-  const borrowMutation = useMutation({ mutationFn: borrowingService.requestBorrow, onSuccess: async data => { await mutationOptions.onSuccess(); if (data.result === 'QR_REQUIRED') setAuth({ toolId: data.toolId, token: data.qrPayload ?? data.toolId, kind: 'borrow', durationMinutes: Number(duration) }); } });
-  const confirmBorrow = useMutation({ mutationFn: borrowingService.confirmBorrow, onSuccess: async () => { setAuth(null); await mutationOptions.onSuccess(); } });
-  const returnMutation = useMutation({ mutationFn: borrowingService.requestReturn, onSuccess: async data => { await mutationOptions.onSuccess(); setAuth({ toolId: data.toolId, token: data.qrPayload, kind: 'return' }); } });
-  const confirmReturn = useMutation({ mutationFn: borrowingService.confirmReturn, onSuccess: async () => { setAuth(null); await mutationOptions.onSuccess(); } });
+  const borrowMutation = useMutation({ mutationFn: borrowingService.requestBorrow, onSuccess: async data => { setAuthMessage(null); await mutationOptions.onSuccess(); if (data.result === 'QR_REQUIRED' && data.qrPayload && data.jti) setAuth({ toolId: data.toolId, token: data.qrPayload, jti: data.jti, expiresAt: data.expiresAt ?? new Date(Date.now() + 5 * 60_000).toISOString(), kind: 'borrow', durationMinutes: Number(duration) }); } });
+  const confirmBorrow = useMutation({ mutationFn: borrowingService.confirmBorrow, onSuccess: async data => { setAuth(null); setAuthMessage(data?.authenticated === false ? 'QR authentication failed. The tool was not borrowed.' : data?.result === 'REJECTED' ? 'QR authentication succeeded, but the tool is no longer available.' : 'QR authentication succeeded. Tool borrowed successfully.'); await mutationOptions.onSuccess(); }, onError: () => setAuthMessage('QR was verified, but the borrowing request could not be completed.') });
+  const returnMutation = useMutation({ mutationFn: borrowingService.requestReturn, onSuccess: async data => { setAuthMessage(null); await mutationOptions.onSuccess(); setAuth({ toolId: data.toolId, token: data.qrPayload, jti: data.jti, expiresAt: data.expiresAt ?? new Date(Date.now() + 5 * 60_000).toISOString(), kind: 'return' }); } });
+  const refreshQr = useMutation({ mutationFn: qrService.refresh, onSuccess: data => setAuth(current => current ? { ...current, token: data.token, jti: data.jti, expiresAt: data.expiresAt } : current) });
+  const confirmReturn = useMutation({ mutationFn: borrowingService.confirmReturn, onSuccess: async data => { setAuth(null); setAuthMessage(data?.authenticated === false ? 'QR authentication failed. The tool was not returned.' : data?.result === 'REJECTED' ? 'QR authentication succeeded, but the return could not be completed.' : 'QR authentication succeeded. Tool returned successfully.'); await mutationOptions.onSuccess(); }, onError: () => setAuthMessage('QR was verified, but the return could not be completed.') });
   const scheduleMutation = useMutation({ mutationFn: borrowingService.requestSchedule, ...mutationOptions, onSuccess: async () => { setStartTime(''); setEndTime(''); await mutationOptions.onSuccess(); } });
-  const rowsByDay = useMemo(() => (scheduleList.data ?? []).reduce<Record<string, typeof scheduleList.data>>((group, row) => { const day = new Date(row.startTime).toLocaleDateString('en-CA'); (group[day] ??= []).push(row); return group; }, {}), [scheduleList.data]);
+  const scheduleRows = scheduleList.data;
+  type ScheduleRow = NonNullable<typeof scheduleRows>[number];
+  const rowsByDay = useMemo(() => {
+    const groups: Record<string, ScheduleRow[]> = {};
+    for (const row of scheduleRows ?? []) {
+      const day = new Date(row.startTime).toLocaleDateString('en-CA');
+      (groups[day] ??= []).push(row);
+    }
+    return groups;
+  }, [scheduleRows]);
   const activeBorrowIds = useMemo(() => {
     const active = new Map<string, string>(); const settled = new Set<string>();
     for (const event of myTools.data ?? []) {
@@ -77,19 +159,134 @@ export function BorrowingWorkflow() {
 
   return <main className="mx-auto max-w-5xl space-y-6">
     <header><p className="text-sm text-muted-foreground">Layanan laboratorium</p><h1 className="text-2xl font-semibold">Peminjaman Alat dan Bahan</h1><p className="mt-1 text-sm text-muted-foreground">Ajukan bahan, pinjam alat, dan pantau jadwal penggunaan.</p></header>
+    {authMessage && <p role="status" className={`rounded-md border p-3 text-sm ${authMessage.includes('failed') || authMessage.includes('could not') || authMessage.includes('but') ? 'border-destructive text-destructive' : 'border-emerald-600 text-emerald-700'}`}>{authMessage}</p>}
     <nav className="flex flex-wrap gap-2 border-b pb-3">{tabs.map(([id, title]) => <Link key={id} href={`/dashboard/loans?tab=${id}`} className={`rounded-full border px-3 py-1.5 text-sm ${selected === id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}`}>{title}</Link>)}</nav>
 
-    {selected === 'material' && <section className="space-y-5"><form className="grid gap-4 rounded-xl border p-5 sm:grid-cols-2" onSubmit={event => { event.preventDefault(); materialMutation.mutate({ materialId, quantity: Number(quantity), description: description || undefined }, { onSuccess: () => { setQuantity('1'); setDescription(''); } }); }}><h2 className="sm:col-span-2 font-semibold">Ajukan peminjaman bahan</h2><label className={labelClass}>Bahan<select required className={field} value={materialId} onChange={event => setMaterialId(event.target.value)}><option value="">Pilih bahan</option>{materials.data?.data.filter(item => item.isAvailable).map(item => <option key={item.id} value={item.id}>{item.name} ({item.unit})</option>)}</select></label><label className={labelClass}>Jumlah<input required type="number" min="0.0001" step="any" className={field} value={quantity} onChange={event => setQuantity(event.target.value)} /></label><label className={`${labelClass} sm:col-span-2`}>Keterangan opsional<textarea className={field} value={description} onChange={event => setDescription(event.target.value)} /></label><div className="sm:col-span-2 flex items-center justify-between"><p className="text-sm text-muted-foreground">Satu pengajuan per formulir. Admin akan menyetujui atau menolak permintaan.</p><button className={button} disabled={materialMutation.isPending}>Kirim pengajuan</button></div></form>{materialMutation.isError && <p className="text-sm text-destructive">Pengajuan bahan gagal.</p>}
-      <section className="space-y-3"><h2 className="font-semibold">Riwayat pengajuan bahan</h2>{materialList.data?.map(item => <article key={item.id} className="flex flex-wrap justify-between gap-2 rounded-lg border p-4"><div><p className="font-medium">{item.materialName} · {item.quantity} {item.unit}</p><p className="text-xs text-muted-foreground">{dateLabel(item.createdAt)}</p></div><span className="text-sm">{item.status === 'PENDING' ? 'Menunggu admin' : item.status === 'APPROVED' ? 'Disetujui' : 'Ditolak'}{item.reviewComments ? ` · ${item.reviewComments}` : ''}</span></article>)}</section></section>}
+    {selected === 'material' && (
+      <section className="space-y-5">
+        <form
+          className="grid gap-4 rounded-xl border p-5 sm:grid-cols-2"
+          onSubmit={event => {
+            event.preventDefault();
+            materialMutation.mutate(
+              {
+                materialId,
+                quantity: Number(quantity),
+                description: description || undefined,
+              },
+              {
+                onSuccess: () => {
+                  setQuantity('1');
+                  setDescription('');
+                },
+              }
+            );
+          }}
+        >
+          <h2 className="sm:col-span-2 font-semibold">Ajukan peminjaman bahan</h2>
 
-    {selected === 'tool' && <section className="max-w-2xl space-y-5 rounded-xl border p-5"><h2 className="font-semibold">Pinjam alat sekarang</h2><form className="grid gap-4" onSubmit={event => { event.preventDefault(); borrowMutation.mutate({ toolId, durationMinutes: Number(duration) }); }}><label className={labelClass}>Alat<ToolSelect value={toolId} onChange={setToolId} /></label><p className="text-xs text-muted-foreground">Lokasi mengikuti laboratorium penempatan alat.</p><label className={labelClass}>Lama penggunaan (menit)<input required type="number" min="1" className={field} value={duration} onChange={event => setDuration(event.target.value)} /></label><p className="text-sm text-muted-foreground">Waktu mulai dianggap sekarang. Bentrok dengan jadwal atau alat yang sedang dipinjam akan ditolak otomatis. Status alat berubah setelah autentikasi QR berhasil.</p><button className={button} disabled={borrowMutation.isPending || !toolId || auth?.kind === 'borrow'}>Ajukan peminjaman</button></form>{borrowMutation.data?.result === 'REJECTED' && <p className="text-sm text-destructive">Permintaan ditolak otomatis karena alat sedang dipakai atau sudah dijadwalkan. Tidak ada perubahan tersimpan.</p>}{auth?.kind === 'borrow' && <AuthPanel token={auth.token} label="peminjaman" busy={confirmBorrow.isPending} onChoose={result => confirmBorrow.mutate({ toolId: auth.toolId, durationMinutes: auth.durationMinutes ?? 60, result })} />}{confirmBorrow.data?.changed === false && <p className="text-sm text-muted-foreground">Autentikasi gagal. Tidak ada perubahan tersimpan.</p>}{confirmBorrow.data?.result === 'REJECTED' && <p className="text-sm text-destructive">Alat tidak lagi tersedia. Tidak ada perubahan tersimpan.</p>}{borrowMutation.isError && <p className="text-sm text-destructive">Pengajuan pinjam alat gagal.</p>}</section>}
+          <label className={labelClass}>
+            Bahan
+            <select
+              required
+              className={field}
+              value={materialId}
+              onChange={event => setMaterialId(event.target.value)}
+            >
+              <option value="">Pilih bahan</option>
+              {materials.data?.data
+                .filter(item => item.isAvailable)
+                .map(item => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} ({item.unit})
+                  </option>
+                ))}
+            </select>
+          </label>
 
-    {selected === 'return-tools' && <section className="space-y-4"><div><h2 className="text-lg font-semibold">Kembalikan alat</h2><p className="mt-1 text-sm text-muted-foreground">Pilih alat yang sedang kamu pinjam, catat kondisi terakhir, lalu autentikasi pengembaliannya.</p></div>{myTools.isLoading ? <p className="text-sm text-muted-foreground">Memuat peminjaman aktif…</p> : myTools.isError ? <p className="text-sm text-destructive">Daftar alat gagal dimuat.</p> : <div className="space-y-3">{myTools.data?.filter(item => item.type === 'BORROW' && item.status === 'BORROWED' && activeBorrowIds.get(item.toolId) === item.id).map(item => <article key={item.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border p-4"><div><h3 className="font-medium">{item.toolName}{item.inventoryCode ? ` · ${item.inventoryCode}` : ''}</h3><p className="mt-1 text-sm text-muted-foreground">Dipinjam {dateLabel(item.time)}</p><p className="text-xs text-muted-foreground">{item.description}</p></div><button className={button} disabled={returnMutation.isPending || auth?.kind === 'return'} onClick={() => returnMutation.mutate(item.toolId)}>Ajukan pengembalian</button></article>)}{!myTools.data?.some(item => item.type === 'BORROW' && item.status === 'BORROWED' && activeBorrowIds.get(item.toolId) === item.id) && !auth && <p className="rounded-xl border p-5 text-sm text-muted-foreground">Tidak ada alat yang sedang kamu pinjam.</p>}</div>}{auth?.kind === 'return' && <AuthPanel token={auth.token} label="pengembalian" busy={confirmReturn.isPending} onChoose={(result, condition, notes) => confirmReturn.mutate({ toolId: auth.toolId, result, condition, notes })} />}{confirmReturn.data?.changed === false && <p className="text-sm text-muted-foreground">Autentikasi gagal. Status alat dan riwayat tidak berubah.</p>}{returnMutation.isError && <p className="text-sm text-destructive">Pengajuan pengembalian gagal. Muat ulang daftar lalu coba lagi.</p>}</section>}
+          <label className={labelClass}>
+            Jumlah
+            <input
+              required
+              type="number"
+              min="0.0001"
+              step="any"
+              className={field}
+              value={quantity}
+              onChange={event => setQuantity(event.target.value)}
+            />
+          </label>
+
+          <label className={`${labelClass} sm:col-span-2`}>
+            Keterangan opsional
+            <textarea
+              className={field}
+              value={description}
+              onChange={event => setDescription(event.target.value)}
+            />
+          </label>
+
+          <div className="sm:col-span-2 flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Satu pengajuan per formulir. Admin akan menyetujui atau menolak permintaan.
+            </p>
+            <button className={button} disabled={materialMutation.isPending}>
+              Kirim pengajuan
+            </button>
+          </div>
+        </form>
+
+        {materialMutation.isError && (
+          <p className="text-sm text-destructive">Pengajuan bahan gagal.</p>
+        )}
+
+        <section className="space-y-3">
+          <h2 className="font-semibold">Riwayat pengajuan bahan</h2>
+          {materialList.data?.map(item => (
+            <article
+              key={item.id}
+              className="flex flex-wrap justify-between gap-2 rounded-lg border p-4"
+            >
+              <div>
+                <p className="font-medium">
+                  {item.materialName} · {item.quantity} {item.unit}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {dateLabel(item.createdAt)}
+                </p>
+              </div>
+              <span className="text-sm">
+                {item.status === 'PENDING'
+                  ? 'Menunggu admin'
+                  : item.status === 'APPROVED'
+                  ? 'Disetujui'
+                  : 'Ditolak'}
+                {item.reviewComments ? ` · ${item.reviewComments}` : ''}
+              </span>
+            </article>
+          ))}
+        </section>
+      </section>
+    )}
+    {selected === 'tool' &&
+    <section className="max-w-2xl space-y-5 rounded-xl border p-5">
+      <h2 className="font-semibold">Pinjam alat sekarang</h2>
+      <form className="grid gap-4" onSubmit={event => { event.preventDefault();
+        borrowMutation.mutate({ toolId, durationMinutes: Number(duration) }); }}>
+          <label className={labelClass}>Alat<ToolSelect value={toolId} onChange={setToolId} /></label>
+          <p className="text-xs text-muted-foreground">Lokasi mengikuti laboratorium penempatan alat.</p>
+          <label className={labelClass}>Lama penggunaan (menit)
+            <input required type="number" min="1" className={field} value={duration} onChange={event => setDuration(event.target.value)} />
+            </label>
+            <p className="text-sm text-muted-foreground">Waktu mulai dianggap sekarang. Bentrok dengan jadwal atau alat yang sedang dipinjam akan ditolak otomatis. Status alat berubah setelah autentikasi QR berhasil.</p>
+            <button className={button} disabled={borrowMutation.isPending || !toolId || auth?.kind === 'borrow'}>Ajukan peminjaman</button></form>{borrowMutation.data?.result === 'REJECTED' && <p className="text-sm text-destructive">Permintaan ditolak otomatis karena alat sedang dipakai atau sudah dijadwalkan. Tidak ada perubahan tersimpan.</p>}{auth?.kind === 'borrow' && <AuthPanel token={auth.token} jti={auth.jti} expiresAt={auth.expiresAt} label="peminjaman" busy={confirmBorrow.isPending || refreshQr.isPending} onRefresh={() => refreshQr.mutate(auth.jti)} onChoose={result => confirmBorrow.mutate({ toolId: auth.toolId, durationMinutes: auth.durationMinutes ?? 60, result, qrJti: auth.jti })} />}{refreshQr.isError && auth?.kind === 'borrow' && <p className="text-sm text-destructive">QR baru gagal dibuat. Coba lagi.</p>}{confirmBorrow.data?.changed === false && <p className="text-sm text-muted-foreground">Autentikasi gagal. Tidak ada perubahan tersimpan.</p>}{confirmBorrow.data?.result === 'REJECTED' && <p className="text-sm text-destructive">Alat tidak lagi tersedia. Tidak ada perubahan tersimpan.</p>}{borrowMutation.isError && <p className="text-sm text-destructive">Pengajuan pinjam alat gagal.</p>}</section>}
+
+    {selected === 'return-tools' && <section className="space-y-4"><div><h2 className="text-lg font-semibold">Kembalikan alat</h2><p className="mt-1 text-sm text-muted-foreground">Pilih alat yang sedang kamu pinjam, catat kondisi terakhir, lalu autentikasi pengembaliannya.</p></div>{myTools.isLoading ? <p className="text-sm text-muted-foreground">Memuat peminjaman aktif…</p> : myTools.isError ? <p className="text-sm text-destructive">Daftar alat gagal dimuat.</p> : <div className="space-y-3">{myTools.data?.filter(item => item.type === 'BORROW' && item.status === 'BORROWED' && activeBorrowIds.get(item.toolId) === item.id).map(item => <article key={item.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border p-4"><div><h3 className="font-medium">{item.toolName}{item.inventoryCode ? ` · ${item.inventoryCode}` : ''}</h3><p className="mt-1 text-sm text-muted-foreground">Dipinjam {dateLabel(item.time)}</p><p className="text-xs text-muted-foreground">{item.description}</p></div><button className={button} disabled={returnMutation.isPending || auth?.kind === 'return'} onClick={() => returnMutation.mutate(item.toolId)}>Ajukan pengembalian</button></article>)}{!myTools.data?.some(item => item.type === 'BORROW' && item.status === 'BORROWED' && activeBorrowIds.get(item.toolId) === item.id) && !auth && <p className="rounded-xl border p-5 text-sm text-muted-foreground">Tidak ada alat yang sedang kamu pinjam.</p>}</div>}{auth?.kind === 'return' && <AuthPanel token={auth.token} jti={auth.jti} expiresAt={auth.expiresAt} label="pengembalian" busy={confirmReturn.isPending || refreshQr.isPending} onRefresh={() => refreshQr.mutate(auth.jti)} onChoose={(result, condition, notes) => confirmReturn.mutate({ toolId: auth.toolId, result, qrJti: auth.jti, condition, notes })} />}{refreshQr.isError && auth?.kind === 'return' && <p className="text-sm text-destructive">QR baru gagal dibuat. Coba lagi.</p>}{confirmReturn.data?.changed === false && <p className="text-sm text-muted-foreground">Autentikasi gagal. Status alat dan riwayat tidak berubah.</p>}{returnMutation.isError && <p className="text-sm text-destructive">Pengajuan pengembalian gagal. Muat ulang daftar lalu coba lagi.</p>}</section>}
 
 
     {selected === 'schedule-request' && <section className="max-w-2xl space-y-5 rounded-xl border p-5"><h2 className="font-semibold">Ajukan schedule alat</h2><form className="grid gap-4" onSubmit={event => { event.preventDefault(); scheduleMutation.mutate({ toolId, startTime: new Date(startTime).toISOString(), endTime: new Date(endTime).toISOString(), description: description || undefined }); }}><label className={labelClass}>Alat<ToolSelect value={toolId} onChange={setToolId} /></label><label className={labelClass}>Mulai<input required type="datetime-local" className={field} value={startTime} onChange={event => setStartTime(event.target.value)} /></label><label className={labelClass}>Selesai<input required type="datetime-local" className={field} value={endTime} onChange={event => setEndTime(event.target.value)} /></label><label className={labelClass}>Keterangan opsional<textarea className={field} value={description} onChange={event => setDescription(event.target.value)} /></label><button className={button} disabled={scheduleMutation.isPending || !toolId}>Kirim pengajuan</button></form>{scheduleMutation.isSuccess && <p className={`text-sm ${'result' in scheduleMutation.data && scheduleMutation.data.result === 'REJECTED' ? 'text-destructive' : 'text-emerald-700'}`}>{'result' in scheduleMutation.data && scheduleMutation.data.result === 'REJECTED' ? 'Pengajuan ditolak karena schedule yang sudah disetujui bertabrakan.' : 'Pengajuan schedule terkirim dan menunggu persetujuan admin.'}</p>}{scheduleMutation.isError && <p className="text-sm text-destructive">Pengajuan ditolak. Periksa waktu atau bentrok schedule alat.</p>}</section>}
-    {selected === 'schedule' && <section className="space-y-4"><div className="max-w-sm"><ToolSelect value={scheduleTool} onChange={setScheduleTool} /></div>{!scheduleTool ? <p className="rounded-xl border p-5 text-sm text-muted-foreground">Pilih alat untuk melihat schedule.</p> : Object.entries(rowsByDay).length ? Object.entries(rowsByDay).map(([day, rows]) => <section key={day} className="rounded-xl border p-4"><h2 className="mb-3 font-semibold">{day}</h2><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{rows?.map(row => <article key={row.id} className="rounded-lg border bg-muted/20 p-3"><p className="font-medium">{row.toolName}</p><p className="mt-1 text-sm">{dateLabel(row.startTime)} – {dateLabel(row.endTime)}</p><p className="text-xs text-muted-foreground">Dijadwalkan oleh {row.studentName}</p><p className="text-xs text-muted-foreground">{row.location}</p><Link className="mt-3 inline-flex rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent" href={`/dashboard/students/${row.studentId}`}>Lihat profil</Link></article>)}</div></section>) : <p className="rounded-xl border p-5 text-sm text-muted-foreground">Belum ada schedule untuk alat ini.</p>}</section>}
+    {selected === 'schedule' && <section className="space-y-4"><div className="max-w-sm"><ToolSelect value={scheduleTool} onChange={setScheduleTool} /></div>{!scheduleTool ? <p className="rounded-xl border p-5 text-sm text-muted-foreground">Pilih alat untuk melihat schedule.</p> : Object.entries(rowsByDay).length ? Object.entries(rowsByDay).map(([day, rows]) => <section key={day} className="rounded-xl border p-4"><h2 className="mb-3 font-semibold">{day}</h2><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{rows?.map(row => <article key={row.id} className="rounded-lg border bg-muted/20 p-3"><p className="font-medium">{row.toolName}</p><p className="mt-1 text-sm">{dateLabel(row.startTime)}  E{dateLabel(row.endTime)}</p><p className="text-xs text-muted-foreground">Dijadwalkan oleh {row.studentName}</p><p className="text-xs text-muted-foreground">{row.location}</p><Link className="mt-3 inline-flex rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent" href={`/dashboard/students/${row.studentId}`}>Lihat profil</Link></article>)}</div></section>) : <p className="rounded-xl border p-5 text-sm text-muted-foreground">Belum ada schedule untuk alat ini.</p>}</section>}
 
-    {selected === 'my-tools' && <section className="space-y-6"><section className="space-y-3"><h2 className="font-semibold">Alat yang sedang dipinjam dan riwayat</h2>{myTools.data?.map(item => <article key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"><div><p className="font-medium">{item.toolName}{item.inventoryCode ? ` · ${item.inventoryCode}` : ''}</p><p className="text-sm text-muted-foreground">{item.type === 'RETURN' ? 'Pengembalian' : 'Peminjaman'} · {borrowingEventLabel(item.type, item.status)} · {dateLabel(item.time)}</p>{item.description !== 'Return authentication requested.' && <p className="text-xs text-muted-foreground">{item.description}</p>}</div>{item.type === 'BORROW' && item.status === 'BORROWED' && activeBorrowIds.get(item.toolId) === item.id && <button className="rounded-md border px-4 py-2 text-sm" disabled={returnMutation.isPending || auth?.kind === 'return'} onClick={() => returnMutation.mutate(item.toolId)}>Ajukan pengembalian</button>}</article>)}{auth?.kind === 'return' && <AuthPanel token={auth.token} label="pengembalian" busy={confirmReturn.isPending} onChoose={(result, condition, notes) => confirmReturn.mutate({ toolId: auth.toolId, result, condition, notes })} />}{myTools.isError && <p className="text-sm text-destructive">Riwayat alat gagal dimuat.</p>}</section><section className="space-y-3"><h2 className="font-semibold">Schedule saya</h2>{mySchedules.data?.map(item => <article key={item.id} className="rounded-xl border p-4"><p className="font-medium">{item.toolName} <span className="text-xs text-muted-foreground">{item.reviewStatus === 'PENDING' ? '• Menunggu persetujuan' : item.reviewStatus === 'REJECTED' ? '• Ditolak' : '• Disetujui'}</span></p><p className="text-sm text-muted-foreground">{dateLabel(item.startTime)} – {dateLabel(item.endTime)}</p><p className="text-xs text-muted-foreground">Dijadwalkan oleh {item.studentName}</p><p className="text-xs text-muted-foreground">{item.location}{item.description ? ` · ${item.description}` : ''}</p><Link className="mt-3 inline-flex rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent" href={`/dashboard/students/${item.studentId}`}>Lihat profil</Link></article>)}</section></section>}
+    {selected === 'my-tools' && <section className="space-y-6"><section className="space-y-3"><h2 className="font-semibold">Alat yang sedang dipinjam dan riwayat</h2>{myTools.data?.map(item => <article key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"><div><p className="font-medium">{item.toolName}{item.inventoryCode ? ` · ${item.inventoryCode}` : ''}</p><p className="text-sm text-muted-foreground">{item.type === 'RETURN' ? 'Pengembalian' : 'Peminjaman'} · {borrowingEventLabel(item.type, item.status)} · {dateLabel(item.time)}</p>{item.description !== 'Return authentication requested.' && <p className="text-xs text-muted-foreground">{item.description}</p>}</div>{item.type === 'BORROW' && item.status === 'BORROWED' && activeBorrowIds.get(item.toolId) === item.id && <button className="rounded-md border px-4 py-2 text-sm" disabled={returnMutation.isPending || auth?.kind === 'return'} onClick={() => returnMutation.mutate(item.toolId)}>Ajukan pengembalian</button>}</article>)}{auth?.kind === 'return' && <AuthPanel token={auth.token} jti={auth.jti} expiresAt={auth.expiresAt} label="pengembalian" busy={confirmReturn.isPending || refreshQr.isPending} onRefresh={() => refreshQr.mutate(auth.jti)} onChoose={(result, condition, notes) => confirmReturn.mutate({ toolId: auth.toolId, result, qrJti: auth.jti, condition, notes })} />}{refreshQr.isError && auth?.kind === 'return' && <p className="text-sm text-destructive">QR baru gagal dibuat. Coba lagi.</p>}{myTools.isError && <p className="text-sm text-destructive">Riwayat alat gagal dimuat.</p>}</section><section className="space-y-3"><h2 className="font-semibold">Schedule saya</h2>{mySchedules.data?.map(item => <article key={item.id} className="rounded-xl border p-4"><p className="font-medium">{item.toolName} <span className="text-xs text-muted-foreground">{item.reviewStatus === 'PENDING' ? '• Menunggu persetujuan' : item.reviewStatus === 'REJECTED' ? '• Ditolak' : '• Disetujui'}</span></p><p className="text-sm text-muted-foreground">{dateLabel(item.startTime)}  E{dateLabel(item.endTime)}</p><p className="text-xs text-muted-foreground">Dijadwalkan oleh {item.studentName}</p><p className="text-xs text-muted-foreground">{item.location}{item.description ? ` · ${item.description}` : ''}</p><Link className="mt-3 inline-flex rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent" href={`/dashboard/students/${item.studentId}`}>Lihat profil</Link></article>)}</section></section>}
   </main>;
 }
